@@ -11,6 +11,7 @@ dotenv.config({ path: "./config/config.env" });
 connectDB();
 
 // Route files here
+const caches = require("./routes/cache.routes.js");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 // Dev logging middleware here
 
 // Mount routers here
+app.use("/api/v1/caches", caches);
 
 // Global error handler here
 
