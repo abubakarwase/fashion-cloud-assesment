@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const CacheSchema = new mongoose.Schema({
   key: {
     type: String,
+    required: [true, "Please add a key"],
   },
   randomString: {
     type: String,
