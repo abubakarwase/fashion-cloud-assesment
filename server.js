@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const colors = require("colors");
 
 const connectDB = require("./config/db");
+const errorHandler = require("./middlewares/error");
 
 // Load env vars
 dotenv.config({ path: "./config/config.env" });
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use("/api/v1/caches", caches);
 
 // Global error handler here
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
