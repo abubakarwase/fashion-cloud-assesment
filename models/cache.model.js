@@ -14,7 +14,7 @@ const CacheSchema = new mongoose.Schema({
   },
   createdAt: {
     type: Date,
-    expires: 3600,
+    expires: process.env.CACHE_TIMEOUT,
     default: Date.now,
   },
 });

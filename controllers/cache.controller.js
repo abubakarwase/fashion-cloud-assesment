@@ -11,7 +11,7 @@ exports.getCache = asyncHandler(async (req, res, next) => {
 
   if (!isCache.length) {
     const caches = await Cache.find({}).exec();
-    if (caches.length >= process.env.CACHE_POOL) {
+    if (caches.length >= Number(process.env.CACHE_POOL)) {
       const tempCache = await Cache.find({})
         .sort({ demand: 1, createdAt: 1 })
         .limit(1)
@@ -20,6 +20,7 @@ exports.getCache = asyncHandler(async (req, res, next) => {
 
       await Cache.deleteOne({ _id: tempId });
     }
+    console.log(`Cache miss`.brightRed.bold);
     const cache = await Cache.create({ key });
     return res.status(201).json({
       success: true,
@@ -31,6 +32,7 @@ exports.getCache = asyncHandler(async (req, res, next) => {
       { $inc: { demand: 1 } },
       { new: true }
     ).exec();
+    console.log(`Cache hit`.brightGreen.bold);
     return res.status(201).json({
       success: true,
       data: updatedCache,
@@ -121,3 +123,15 @@ exports.deleteCache = asyncHandler(async (req, res, next) => {
     data: {},
   });
 });
+
+// @desc    Delete all cache
+// @route   DELETE /api/v1/caches
+// @access  Public
+exports.deleteAllCache = asyncHandler(async (req, res, next) => {
+    await Cache.remove();
+  
+    return res.status(200).json({
+      success: true,
+      data: {},
+    });
+  });
