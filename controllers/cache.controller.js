@@ -1,58 +1,65 @@
+const crypto = require("crypto");
+const moment = require("moment");
+
 const Cache = require("../models/cache.model");
 const asyncHandler = require("../middlewares/async");
 const ErrorResponse = require("../utils/errorResponse");
+
+async function generateRandomValue() {
+  return await crypto.randomBytes(20).toString("hex");
+}
+
+async function getOrCreateRecord(key, randomValue) {
+  const updateObject = {
+    $setOnInsert: {
+      key,
+      value: randomValue,
+    },
+    $set: {
+      expiresOn: moment().add(process.env.CACHE_TIMEOUT, 'seconds').toDate(),
+    },
+  };
+  const updateOptions = {
+    upsert: true,
+    new: true,
+  };
+  return Cache.findOneAndUpdate({ key }, updateObject, updateOptions);
+}
+
+async function ensureSpace() {
+  const count = await Cache.count();
+
+  if (count < Number(process.env.CACHE_POOL)) {
+    return;
+  }
+
+  return Cache.findOneAndRemove(
+    {},
+    {sort: 'expiresOn'}
+  );
+}
 
 // @desc    Create cache
 // @route   GET /api/v1/caches/:key
 // @access  Public
 exports.getCache = asyncHandler(async (req, res, next) => {
   const { key } = req.params;
-  const isCache = await Cache.find({ key }).exec();
 
-  if (!isCache.length) {
-    const caches = await Cache.find({}).exec();
-    if (caches.length >= Number(process.env.CACHE_POOL)) {
-      const tempCache = await Cache.find({})
-        .sort({ demand: 1, createdAt: 1 })
-        .limit(1)
-        .exec();
-      const tempId = tempCache[0]._id;
+  await ensureSpace();
 
-      await Cache.deleteOne({ _id: tempId });
-    }
+  const randomValue = await generateRandomValue();
+
+  const record = await getOrCreateRecord(key, randomValue);
+
+  if (record.value === randomValue) {
     console.log(`Cache miss`.brightRed.bold);
-    const cache = await Cache.create({ key });
-    return res.status(201).json({
-      success: true,
-      data: cache,
-    });
   } else {
-    const updatedCache = await Cache.findOneAndUpdate(
-      { key },
-      { $inc: { demand: 1 } },
-      { new: true }
-    ).exec();
     console.log(`Cache hit`.brightGreen.bold);
-    return res.status(201).json({
-      success: true,
-      data: updatedCache,
-    });
   }
-});
 
-// @desc    Get a cache
-// @route   GET /api/v1/caches/:key/retrieve
-// @access  Public
-exports.getCacheRetrieve = asyncHandler(async (req, res, next) => {
-  const { key } = req.params;
-  const cache = await Cache.find({ key }).exec();
-
-  if (!cache.length) {
-    return next(new ErrorResponse(`Cache not found with key of ${key}`, 404));
-  }
-  return res.status(200).json({
+  return res.status(201).json({
     success: true,
-    data: [...cache],
+    data: record,
   });
 });
 
@@ -66,6 +73,7 @@ exports.getCacheList = asyncHandler(async (req, res, next) => {
     .sort({
       createdAt: sort || "-1",
     })
+    .select('key value -_id expiresOn')
     .limit(limit || 15)
     .skip((page - 1) * 15)
     .exec();
@@ -128,10 +136,10 @@ exports.deleteCache = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/v1/caches
 // @access  Public
 exports.deleteAllCache = asyncHandler(async (req, res, next) => {
-    await Cache.remove();
-  
-    return res.status(200).json({
-      success: true,
-      data: {},
-    });
+  await Cache.deleteMany();
+
+  return res.status(200).json({
+    success: true,
+    data: {},
   });
+});
