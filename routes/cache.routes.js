@@ -3,7 +3,6 @@ const router = express.Router();
 
 const {
   getCache,
-  getCacheRetrieve,
   getCacheList,
   updateCache,
   deleteCache,
@@ -11,8 +10,6 @@ const {
 } = require("../controllers/cache.controller");
 
 router.route("/:key").get(getCache).put(updateCache).delete(deleteCache);
-
-router.route("/:key/retrieve").get(getCacheRetrieve);
 
 router.route("/").get(getCacheList).delete(deleteAllCache);
 
